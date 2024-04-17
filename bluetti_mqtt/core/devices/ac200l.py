@@ -66,7 +66,7 @@ class AC200L(BluettiDevice):
         self.struct.add_bool_field('power_off', 3060)
         self.struct.add_enum_field('auto_sleep_mode', 3061, AutoSleepMode)
 
-        super().__init__(address, 'AC200M', sn)
+        super().__init__(address, 'AC200L', sn)
 
     @property
     def pack_num_max(self):
