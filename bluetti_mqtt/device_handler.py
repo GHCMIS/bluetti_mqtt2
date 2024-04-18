@@ -43,7 +43,6 @@ class DeviceHandler:
                 continue
 
             device = self._get_device(address)
-
             # Send all polling commands
             start_time = time.monotonic()
             for command in device.polling_commands:
