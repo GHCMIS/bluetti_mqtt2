@@ -25,7 +25,7 @@ async def scan_devices():
 
 def build_device(address: str, name: str):
     match = DEVICE_NAME_RE.match(name)
-    if match[1] == 'ACL200L':
+    if match[1] == 'AC200L':
         return AC200L(address, match[2])
     if match[1] == 'AC200M':
         return AC200M(address, match[2])
