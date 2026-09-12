@@ -51,8 +51,8 @@ async def log_command(client: BluetoothClient, device: BluettiDevice, command: D
         log_invalid(log_file, err, command)
 
 
-async def log(address: str, path: str):
-    devices = await check_addresses({address})
+async def log(address: str, path: str, ac200l_expansion_packs: bool = True):
+    devices = await check_addresses({address}, ac200l_expansion_packs)
     if len(devices) == 0:
         sys.exit('Could not find the given device to connect to')
     device = devices[0]
@@ -108,6 +108,10 @@ def main():
         metavar='PATH',
         help='Connect and log data for the device to the given file')
     parser.add_argument(
+        '--ac200l-standalone',
+        action='store_true',
+        help='Disable expansion-pack polling for AC200L devices')
+    parser.add_argument(
         'address',
         metavar='ADDRESS',
         nargs='?',
@@ -116,7 +120,7 @@ def main():
     if args.scan:
         asyncio.run(scan_devices())
     elif args.log:
-        asyncio.run(log(args.address, args.log))
+        asyncio.run(log(args.address, args.log, ac200l_expansion_packs=not args.ac200l_standalone))
     else:
         parser.print_help()
 

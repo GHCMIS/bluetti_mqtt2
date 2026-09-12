@@ -70,7 +70,10 @@ class BluetoothClient:
         finally:
             # Ensure that we disconnect
             if self.client:
-                await self.client.disconnect()
+                try:
+                    await self.client.disconnect()
+                except Exception:
+                    pass
 
     async def _connect(self):
         """Establish connection to the bluetooth device"""
@@ -90,7 +93,7 @@ class BluetoothClient:
             name = await self.client.read_gatt_char(self.DEVICE_NAME_UUID)
             self.name = name.decode('ascii')
             logging.info(f'Device {self.address} has name: {self.name}')
-        except BleakError:
+        except (BleakError, EOFError, asyncio.TimeoutError):
             logging.exception(f'Error retrieving device name {self.address}:')
             self.state = ClientState.DISCONNECTING
 
@@ -101,7 +104,7 @@ class BluetoothClient:
                 self.NOTIFY_UUID,
                 self._notification_handler)
             self.state = ClientState.READY
-        except BleakError:
+        except (BleakError, EOFError, asyncio.TimeoutError):
             self.state = ClientState.DISCONNECTING
 
     async def _perform_command(self):
@@ -147,7 +150,7 @@ class BluetoothClient:
                 break
             except (BleakError, EOFError, BadConnectionError) as err:
                 if cmd_future:
-                    cmd_future.set_exception(err)
+                    cmd_future.set_exception(BadConnectionError(str(err)))
 
                 self.state = ClientState.DISCONNECTING
                 break
@@ -161,8 +164,12 @@ class BluetoothClient:
         self.command_queue.task_done()
 
     async def _disconnect(self):
-        await self.client.disconnect()
-        logging.warn(f'Delayed reconnect to {self.address} after error')
+        try:
+            await self.client.disconnect()
+        except Exception:
+            pass
+        self.client = BleakClient(self.address)
+        logging.warning(f'Delayed reconnect to {self.address} after error')
         await asyncio.sleep(5)
         self.state = ClientState.NOT_CONNECTED
 

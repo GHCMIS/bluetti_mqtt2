@@ -23,10 +23,10 @@ async def scan_devices():
             print(f'Found {d.name}: address {d.address}')
 
 
-def build_device(address: str, name: str):
+def build_device(address: str, name: str, ac200l_expansion_packs: bool = True):
     match = DEVICE_NAME_RE.match(name)
     if match[1] == 'AC200L':
-        return AC200L(address, match[2])
+        return AC200L(address, match[2], expansion_packs=ac200l_expansion_packs)
     if match[1] == 'AC200M':
         return AC200M(address, match[2])
     if match[1] == 'AC300':
@@ -45,7 +45,7 @@ def build_device(address: str, name: str):
         return EB3A(address, match[2])
 
 
-async def check_addresses(addresses: Set[str]):
+async def check_addresses(addresses: Set[str], ac200l_expansion_packs: bool = True):
     logging.debug(f'Checking we can connect: {addresses}')
     devices = await BleakScanner.discover()
     filtered = [d for d in devices if d.address in addresses]
@@ -54,4 +54,4 @@ async def check_addresses(addresses: Set[str]):
     if len(filtered) != len(addresses):
         return []
 
-    return [build_device(d.address, d.name) for d in filtered]
+    return [build_device(d.address, d.name, ac200l_expansion_packs) for d in filtered]

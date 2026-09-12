@@ -45,6 +45,11 @@ not set an interval.
 
     $ bluetti-mqtt --broker [MQTT_BROKER_HOST] 00:11:22:33:44:55 00:11:22:33:44:66
 
+For an AC200L without expansion batteries, add ``--ac200l-standalone`` to
+``bluetti-mqtt`` or ``bluetti-logger``. This polls the internal battery without
+switching packs. The option applies to all AC200L devices in the process and
+does not affect other models. By default, expansion-pack polling remains enabled.
+
 Background Service
 ------------------
 
