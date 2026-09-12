@@ -53,6 +53,10 @@ class CommandLineHandler:
             choices=['normal', 'none', 'advanced'],
             help='What fields to configure in Home Assistant - defaults to most fields ("normal")')
         parser.add_argument(
+            '--ac200l-standalone',
+            action='store_true',
+            help='Disable expansion-pack polling for all AC200L devices')
+        parser.add_argument(
             'addresses',
             metavar='ADDRESS',
             nargs='*',
@@ -117,7 +121,8 @@ class CommandLineHandler:
 
         # Start bluetooth handler (manages connections)
         addresses: List[str] = list(set(args.addresses))
-        handler = DeviceHandler(addresses, args.interval, bus)
+        handler = DeviceHandler(addresses, args.interval, bus,
+                                ac200l_expansion_packs=not args.ac200l_standalone)
         bluetooth_task = loop.create_task(handler.run())
         self.background_tasks.add(bluetooth_task)
         bluetooth_task.add_done_callback(self.background_tasks.discard)

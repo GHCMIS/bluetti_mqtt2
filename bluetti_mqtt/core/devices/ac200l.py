@@ -23,7 +23,8 @@ class AutoSleepMode(Enum):
 
 
 class AC200L(BluettiDevice):
-    def __init__(self, address: str, sn: str):
+    def __init__(self, address: str, sn: str, expansion_packs: bool = True):
+        self.expansion_packs = expansion_packs
         self.struct = DeviceStruct()
 
         # Core
@@ -70,31 +71,33 @@ class AC200L(BluettiDevice):
 
     @property
     def pack_num_max(self):
-        return 3
+        return 3 if self.expansion_packs else 1
 
     @property
     def polling_commands(self) -> List[ReadHoldingRegisters]:
         return [
             ReadHoldingRegisters(10, 40),
             ReadHoldingRegisters(70, 21),
+            *([] if self.expansion_packs else [ReadHoldingRegisters(91, 31)]),
             ReadHoldingRegisters(3001, 61),
         ]
 
     @property
     def pack_polling_commands(self) -> List[ReadHoldingRegisters]:
-        return [ReadHoldingRegisters(91, 37)]
+        return [ReadHoldingRegisters(91, 37)] if self.expansion_packs else []
 
     @property
     def logging_commands(self) -> List[ReadHoldingRegisters]:
         return [
             ReadHoldingRegisters(0, 70),
             ReadHoldingRegisters(70, 21),
+            *([] if self.expansion_packs else [ReadHoldingRegisters(91, 31)]),
             ReadHoldingRegisters(3001, 61),
         ]
 
     @property
     def pack_logging_commands(self) -> List[ReadHoldingRegisters]:
-        return [ReadHoldingRegisters(91, 119)]
+        return [ReadHoldingRegisters(91, 119)] if self.expansion_packs else []
 
     @property
     def writable_ranges(self) -> List[range]:

@@ -9,11 +9,13 @@ from bluetti_mqtt.core import BluettiDevice, ReadHoldingRegisters
 
 
 class DeviceHandler:
-    def __init__(self, addresses: List[str], interval: int, bus: EventBus):
+    def __init__(self, addresses: List[str], interval: int, bus: EventBus,
+                 ac200l_expansion_packs: bool = True):
         self.manager = MultiDeviceManager(addresses)
         self.devices: Dict[str, BluettiDevice] = {}
         self.interval = interval
         self.bus = bus
+        self.ac200l_expansion_packs = ac200l_expansion_packs
 
     async def run(self):
         loop = asyncio.get_running_loop()
@@ -93,11 +95,11 @@ class DeviceHandler:
             logging.debug('Got a parse exception...')
         except ModbusError as err:
             logging.debug(f'Got an invalid request error for {command}: {err}')
-        except (BadConnectionError, BleakError) as err:
+        except (BadConnectionError, BleakError, EOFError, asyncio.TimeoutError) as err:
             logging.debug(f'Needed to disconnect due to error: {err}')
 
     def _get_device(self, address: str):
         if address not in self.devices:
             name = self.manager.get_name(address)
-            self.devices[address] = build_device(address, name)
+            self.devices[address] = build_device(address, name, self.ac200l_expansion_packs)
         return self.devices[address]
