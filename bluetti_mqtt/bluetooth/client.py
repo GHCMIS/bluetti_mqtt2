@@ -2,7 +2,7 @@ import asyncio
 from enum import Enum, auto, unique
 import logging
 from typing import Union
-from bleak import BleakClient, BleakError
+from bleak import BleakClient, BleakError, BleakScanner
 from bleak.exc import BleakDeviceNotFoundError
 from bluetti_mqtt.core import DeviceCommand
 from .exc import BadConnectionError, ModbusError, ParseError
@@ -29,10 +29,10 @@ class BluetoothClient:
     notify_future: asyncio.Future
     notify_response: bytearray
 
-    def __init__(self, address: str):
+    def __init__(self, address: str, name: Union[str, None] = None):
         self.address = address
         self.state = ClientState.NOT_CONNECTED
-        self.name = None
+        self.name = name
         self.client = BleakClient(self.address)
         self.command_queue = asyncio.Queue()
         self.notify_future = None
@@ -89,13 +89,47 @@ class BluetoothClient:
 
     async def _get_name(self):
         """Get device name, which can be parsed for type"""
+        if self.name:
+            return
+
+        # 1. Try reading standard GATT characteristic 00002a00 if available in services
         try:
-            name = await self.client.read_gatt_char(self.DEVICE_NAME_UUID)
-            self.name = name.decode('ascii')
-            logging.info(f'Device {self.address} has name: {self.name}')
-        except (BleakError, EOFError, asyncio.TimeoutError):
-            logging.exception(f'Error retrieving device name {self.address}:')
-            self.state = ClientState.DISCONNECTING
+            char = self.client.services.get_characteristic(self.DEVICE_NAME_UUID)
+            if char:
+                name = await self.client.read_gatt_char(char)
+                name_str = name.decode('ascii').strip('\x00').strip()
+                if name_str:
+                    self.name = name_str
+                    logging.info(f'Device {self.address} has name: {self.name}')
+                    return
+        except Exception as err:
+            logging.debug(f'Could not read GATT name characteristic for {self.address}: {err}')
+
+        # 2. Try BlueZ device properties (Name or Alias)
+        try:
+            backend = getattr(self.client, '_backend', None)
+            if backend:
+                props = getattr(backend, '_properties', {})
+                name_str = props.get('Name') or props.get('Alias')
+                if name_str and name_str != self.address:
+                    self.name = str(name_str).strip()
+                    logging.info(f'Device {self.address} has name from BlueZ properties: {self.name}')
+                    return
+        except Exception as err:
+            logging.debug(f'Could not get name from BlueZ properties for {self.address}: {err}')
+
+        # 3. Try discovering the name from BLE advertisement via BleakScanner
+        try:
+            device = await BleakScanner.find_device_by_address(self.address, timeout=5.0)
+            if device and device.name:
+                self.name = device.name.strip()
+                logging.info(f'Device {self.address} has name from BLE scan: {self.name}')
+                return
+        except Exception as err:
+            logging.debug(f'BLE scan lookup failed for {self.address}: {err}')
+
+        logging.error(f'Error retrieving device name {self.address}: GATT characteristic {self.DEVICE_NAME_UUID} not found and BLE scan returned no name')
+        self.state = ClientState.DISCONNECTING
 
     async def _start_listening(self):
         """Register for command response notifications"""
